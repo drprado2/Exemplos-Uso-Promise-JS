@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Exemplo Promises</title>
+</head>
+<body>
+	<h1>Abra esse HTML no navegador e verifique o console</h1>
+    <script>
+		
+		(async function(){
+			console.warn('INICIANDO EXECUÇÃO DO EXEMPLO PROMISE ALL HAPPY DAY');
+			await testePromiseAllQuandoHappyDay().then(q => console.log('EXECUÇÃO DA HAPPYDAY ACABOU COM SUCESSO', q)).catch(q => console.error('EXECUÇÃO DA HAPPYDAY COM FRACASSO', q));	
+			console.warn('*****************************************************');
+			
+			console.warn('INICIANDO EXECUÇÃO DO EXEMPLO PROMISE ALL COM 1 ERRO NO MEIO');
+			await testePromiseAllQuando1DaErro().then(q => console.log('EXECUÇÃO DA 1 COM ERRO ACABOU COM SUCESSO', q)).catch(q => console.error('EXECUÇÃO DA 1 COM ERRO COM FRACASSO', q));
+			console.warn('*****************************************************');
+			
+			console.warn('INICIANDO EXECUÇÃO DO EXEMPLO PROMISE RACE BUSCANDO O PRIMEIRO SERVIÇO Q RESPONDER');
+			await testePromiseRaceParaConsultarServicoMaisRapido().then(q => console.log('EXECUÇÃO DA BUSCA POR SERVIÇO MAIS RAPIDO ACABOU COM SUCESSO', q)).catch(q => console.error('EXECUÇÃO DA BUSCA POR SERVIÇO MAIS RAPIDO ACABOU COM SUCESSO', q));
+			console.warn('*****************************************************');
+			
+			console.warn('INICIANDO EXECUÇÃO DO EXEMPLO PROMISE ANY BUSCANDO PRIMEIRO SERVIÇO QUE NAO DE ERRO');
+			await testeBuscarPromisesEIgnorarAsQueDeremErro().then(q => console.log('EXECUÇÃO DA IGNORAR ERROS ACABOU COM SUCESSO', q)).catch(q => console.error('EXECUÇÃO DA IGNORAR ERROS ACABOU COM SUCESSO', q))	
+			console.warn('*****************************************************');
+		})();		        				
+		
+		async function testePromiseAllQuandoHappyDay() {			
+			try {
+				// Começamos criando uma lista de promessas, que poderiam ser consultar a serviços REST, banco de dados, integrações
+				// Veja que aqui criamos a Primise diretamente mais bibliotecas como Axios e Fetch já tem as funções que retornam as Promises
+				var promise1 = new Promise((resolve, reject) => {setTimeout(() => resolve('primise 10sec'), 10000)});
+				var promise2 = new Promise((resolve, reject) => {setTimeout(() => resolve('primise 13sec'), 13000)});
+				var promise3 = new Promise((resolve, reject) => {setTimeout(() => resolve('primise 15sec'), 15000)});
+				// Guardamos as Promises em uma collection
+				var promises = [promise1, promise2, promise3];
+
+				// Por conta de nossa função ser marcada com async podemos usar o await aqui, isso é equivalente ao uso de then, note que usamos o try e catch que seria equivalente a um .catch() para tratar erro
+				// Devemos ficar atentos com Promise.all pois se 1 promise der erro, tudo caíra como erro
+				var result = await Promise.all(promises);
+
+				// Quando tudo da certo temos como resultado uma collection com os resultados das promessas
+				result.forEach(r => console.log('veja o resultado', r))	
+			}catch(erro){
+				console.error('IXI DEU ERRO', erro)
+			}			
+		}
+		
+		async function testePromiseAllQuando1DaErro() {			
+			try {
+				// Esse exemplo é igual ao de cima mais note que vamos fazer o reject em uma delas para simular o erro
+				var promise1 = new Promise((resolve, reject) => {setTimeout(() => resolve('primise 10sec'), 10000)});
+				var promise2 = new Promise((resolve, reject) => {setTimeout(() => resolve('primise 13sec'), 13000)});
+				// Veja que aqui chamamos reject como se essa promise tivesse dado erro
+				var promise3 = new Promise((resolve, reject) => {setTimeout(() => reject('primise 15sec'), 15000)});
+				var promises = [promise1, promise2, promise3];
+
+				var result = await Promise.all(promises);
+
+				// Perceba que ele não irá passar aqui apenas no catch
+				result.forEach(r => console.log('veja o resultado', r))	
+			}catch(erro){
+				// perceba que o catch não traz como resultado uma collection de promises, traz apenas o primeiro erro que der, a primeira promise que der reject ele traz aq
+				console.error('IXI DEU ERRO', erro)
+			}			
+		}
+		
+		async function testePromiseRaceParaConsultarServicoMaisRapido() {			
+			try {
+				// O arranjo do exemplo é analogo aos de cima
+				var promise1 = new Promise((resolve, reject) => {setTimeout(() => resolve('primise 5sec'), 5000)});
+				var promise2 = new Promise((resolve, reject) => {setTimeout(() => resolve('primise 13sec'), 13000)});
+				var promise3 = new Promise((resolve, reject) => {setTimeout(() => resolve('primise 15sec'), 15000)});
+				var promises = [promise1, promise2, promise3];
+
+				// Veja que usamos o método promise race e esse método será liberado em apenas 5 segundos, pois ele libera quando a promise mais rápida terminar
+				var result = await Promise.race(promises);
+
+				console.log('O SERVIÇO MAIS RAPIDO FOI', result)
+			}catch(erro){
+				console.error('IXI DEU ERRO', erro)
+			}			
+		}
+		
+		async function testeBuscarPromisesEIgnorarAsQueDeremErro() {			
+			
+			// Esse exemplo é o mais complexo, precisamos deixar cada promise com um catch, pois sabemos da chance de erro, e queremos ir desistindo das promises com erro
+			var promises = [];
+			var promise1 = new Promise((resolve, reject) => {setTimeout(() => reject('primise 10sec'), 10000)})
+				// Perceba que no catch basicamente nos auto removemos da lista de promessas, e retornamos um Promise.reject para passar o erro pra frente
+				.catch(e => {
+					promises.splice(promises.findIndex(p => p === promise1), 1); 
+					return Promise.reject(e);
+				});
+			var promise2 = new Promise((resolve, reject) => {setTimeout(() => reject('primise 13sec'), 13000)})
+				.catch(e => {
+					promises.splice(promises.findIndex(p => p === promise2), 1); 
+					return Promise.reject(e);
+				});
+			var promise3 = new Promise((resolve, reject) => {setTimeout(() => resolve('primise 15sec'), 15000)})
+				.catch(e => {
+					promises.splice(promises.findIndex(p => p === promise3), 1); 
+					return Promise.reject(e);
+				});
+			var promise4 = new Promise((resolve, reject) => {setTimeout(() => resolve('primise 20sec'), 20000)}).then(q => console.log('PERCEBA Q MESMO APOS A EXECUCAO DA RACE ESSA PROMISE AINDA FOI RESOLVIDA, ELA NAO E CANCELADA', q))
+				.catch(e => {
+					promises.splice(promises.findIndex(p => p === promise4), 1); 
+					return Promise.reject(e);
+				});
+			
+			promises = [promise1, promise2, promise3, promise4];
+			
+			// Aqui rodamos um loop até que não reste nenhuma promise o que significa que todas deram erro, ou até que o break do loop seja chamado
+			while(promises.length > 0){
+				try {				
+					var result = await Promise.race(promises);
+
+					console.log('OPA CONSEGUI UMA PROMESSA SEM ERRO', result);
+					break;
+				}catch(erro){
+					console.error('IXI MAIS UMA DEU ERRO', erro)					
+				}			
+			}									
+		}
+		
+    </script>
+</body>
+</html>
